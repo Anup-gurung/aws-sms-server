@@ -50,6 +50,6 @@ app.post("/send-sms", async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT, () => {
-  console.log(`SMS server running on port ${process.env.PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`SMS server running on port ${PORT}`);
 });
