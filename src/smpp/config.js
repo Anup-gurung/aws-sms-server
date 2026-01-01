@@ -1,4 +1,4 @@
-require('dotenv').config();
+import 'dotenv/config';
 
 export const host = process.env.SMPP_HOST;
 export const port = process.env.SMPP_PORT;
