@@ -1,8 +1,10 @@
 import { connect as _connect } from 'smpp';
-import { host, port, systemId, password as _password } from './config';
+import { host, port, systemId, password as _password } from './config.js';
 
 let session;
 let isBound = false;
+let retryCount = 0;
+const MAX_RETRIES = 5;
 
 function connect() {
   console.log('🔌 Connecting to SMPP...');
@@ -18,6 +20,7 @@ function connect() {
     (pdu) => {
       if (pdu.command_status === 0) {
         isBound = true;
+        retryCount = 0;
         console.log('✅ SMPP bind successful');
       } else {
         console.error('❌ SMPP bind failed:', pdu.command_status);
@@ -27,8 +30,13 @@ function connect() {
 
   session.on('close', () => {
     isBound = false;
-    console.log('⚠️ SMPP connection closed. Reconnecting...');
-    setTimeout(connect, 5000);
+    if (retryCount < MAX_RETRIES) {
+      retryCount++;
+      console.log(`⚠️ SMPP connection closed. Reconnecting... (${retryCount}/${MAX_RETRIES})`);
+      setTimeout(connect, 5000);
+    } else {
+      console.log('❌ Max SMPP reconnection attempts reached. SMPP will be unavailable.');
+    }
   });
 
   session.on('error', (err) => {

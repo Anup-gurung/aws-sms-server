@@ -1,9 +1,9 @@
-const { getSession } = require('./client');
-const config = require('./config');
+import client from './client.js';
+import * as config from './config.js';
 
 function sendSMS(msisdn, message) {
   return new Promise((resolve, reject) => {
-    const { session, isBound } = getSession();
+    const { session, isBound } = client.getSession();
 
     if (!isBound) {
       return reject('SMPP not connected');
@@ -32,4 +32,4 @@ function sendSMS(msisdn, message) {
   });
 }
 
-module.exports = { sendSMS };
+export { sendSMS };

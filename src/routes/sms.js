@@ -19,6 +19,10 @@ router.post('/send-sms', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 export default router;
 
 
+=======
+export default router;
+>>>>>>> 422ff395dc4132e12aa746d5af7be7e1be58b47f
