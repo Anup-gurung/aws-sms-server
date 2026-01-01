@@ -1,9 +1,5 @@
 import express, { json } from 'express';
 import smsRoutes from './routes/sms.js';
-<<<<<<< HEAD
-import { connectSMPP } from './smpp.js'; // your SMPP logic
-=======
->>>>>>> 422ff395dc4132e12aa746d5af7be7e1be58b47f
 
 const app = express();
 app.use(json());
