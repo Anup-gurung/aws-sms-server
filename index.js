@@ -2,6 +2,7 @@ import express from "express";
 import axios from "axios";
 import dotenv from "dotenv";
 
+const PORT = process.env.PORT || 80;
 dotenv.config();
 const app = express();
 app.use(express.json());
@@ -49,7 +50,6 @@ app.post("/send-sms", async (req, res) => {
     });
   }
 });
-
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT,() => {
   console.log(`SMS server running on port ${PORT}`);
 });
