@@ -11,6 +11,21 @@ function connect() {
 
   session = _connect(`smpp://${host}:${port}`);
 
+  session.on('close', () => {
+    isBound = false;
+    if (retryCount < MAX_RETRIES) {
+      retryCount++;
+      console.log(`⚠️ SMPP connection closed. Reconnecting... (${retryCount}/${MAX_RETRIES})`);
+      setTimeout(connect, 5000);
+    } else {
+      console.log('❌ Max SMPP reconnection attempts reached.');
+    }
+  });
+
+  session.on('error', (err) => {
+    console.error('🔥 SMPP error:', err.message);
+  });
+
   session.bind_transceiver(
     {
       system_id: systemId,
@@ -27,27 +42,13 @@ function connect() {
       }
     }
   );
-
-  session.on('close', () => {
-    isBound = false;
-    if (retryCount < MAX_RETRIES) {
-      retryCount++;
-      console.log(`⚠️ SMPP connection closed. Reconnecting... (${retryCount}/${MAX_RETRIES})`);
-      setTimeout(connect, 5000);
-    } else {
-      console.log('❌ Max SMPP reconnection attempts reached. SMPP will be unavailable.');
-    }
-  });
-
-  session.on('error', (err) => {
-    console.error('🔥 SMPP error:', err.message);
-  });
 }
 
 function getSession() {
   return { session, isBound };
 }
 
+// 🔥 start connection immediately
 connect();
 
 export default { getSession };
