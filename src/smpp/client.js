@@ -1,53 +1,37 @@
-import { connect as _connect } from 'smpp';
-import { host, port, systemId, password as _password } from './config.js';
+import smpp from 'smpp';
 
-let session;
-let isBound = false;
-let retryCount = 0;
-const MAX_RETRIES = 5;
+const startConnection = () => {
+    console.log('🔌 Connecting to SMPP...');
 
-function startConnection() {
-  console.log('🔌 Connecting to SMPP...');
+    // Use a direct session object instead of a URL string if ETIMEDOUT persists
+    const session = smpp.connect({
+        host: '118.103.137.224',
+        port: 5019,
+        timeout: 10000 // Increase timeout to 10 seconds
+    });
 
-  session = _connect(`smpp://${host}:${port}`);
+    session.on('connect', () => {
+        console.log('📡 Socket connected, attempting bind...');
+        
+        session.bind_transceiver({
+            system_id: 'AnupG',
+            password: 'AnupG',
+        }, (pdu) => {
+            if (pdu.command_status === 0) {
+                console.log('✅ SMPP bind successful');
+            } else {
+                console.error('❌ SMPP bind failed. Status:', pdu.command_status);
+            }
+        });
+    });
 
-  session.bind_transceiver(
-    {
-      system_id: systemId,
-      password: _password,
-      interface_version: 0x34,
-    },
-    (pdu) => {
-      if (pdu.command_status === 0) {
-        isBound = true;
-        retryCount = 0;
-        console.log('✅ SMPP bind successful');
-      } else {
-        console.error('❌ SMPP bind failed:', pdu.command_status);
-      }
-    }
-  );
+    session.on('error', (err) => {
+        console.error('🔥 SMPP error:', err.message);
+    });
 
-  session.on('close', () => {
-    isBound = false;
-    if (retryCount < MAX_RETRIES) {
-      retryCount++;
-      console.log(`⚠️ SMPP connection closed. Reconnecting... (${retryCount}/${MAX_RETRIES})`);
-      setTimeout(startConnection, 5000);
-    } else {
-      console.log('❌ Max SMPP reconnection attempts reached.');
-    }
-  });
+    session.on('close', () => {
+        console.log('⚠️ SMPP connection closed.');
+    });
+};
 
-  session.on('error', (err) => {
-    console.error('🔥 SMPP error:', err.message);
-  });
-}
-
-function getSession() {
-  return { session, isBound };
-}
-
-startConnection();
-
-export default { getSession };
+export default startConnection;
