@@ -1,36 +1,28 @@
 import smpp from 'smpp';
 
 const startConnection = () => {
-    console.log('🔌 Connecting to SMPP...');
-
-    // Use a direct session object instead of a URL string if ETIMEDOUT persists
-    const session = smpp.connect({
-        host: '118.103.137.224',
-        port: 5019,
-        timeout: 10000 // Increase timeout to 10 seconds
-    });
+    // Connect using the raw IP and Port
+    const session = smpp.connect('118.103.137.224', 5019);
 
     session.on('connect', () => {
-        console.log('📡 Socket connected, attempting bind...');
+        console.log('📡 Socket connected! Binding immediately...');
         
+        // You must bind immediately before the server closes the host
         session.bind_transceiver({
             system_id: 'AnupG',
             password: 'AnupG',
+            interface_version: 0x34 // Force SMPP v3.4
         }, (pdu) => {
             if (pdu.command_status === 0) {
                 console.log('✅ SMPP bind successful');
             } else {
-                console.error('❌ SMPP bind failed. Status:', pdu.command_status);
+                console.error('❌ Bind failed. Status:', pdu.command_status);
             }
         });
     });
 
     session.on('error', (err) => {
-        console.error('🔥 SMPP error:', err.message);
-    });
-
-    session.on('close', () => {
-        console.log('⚠️ SMPP connection closed.');
+        console.error('🔥 SMPP Error:', err.message);
     });
 };
 
