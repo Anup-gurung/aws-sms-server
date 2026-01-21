@@ -10,17 +10,34 @@ function sendSMSViaProvider(msisdn, message, providerSession, senderConfig) {
       return reject('SMPP not connected');
     }
 
+    // Validate sender ID length (max 21 chars for alphanumeric)
+    const senderId = senderConfig.senderId || '';
+    const senderIdBuffer = Buffer.from(senderId, 'utf8');
+    if (senderIdBuffer.length > 21) {
+      return reject(`Sender ID too long: ${senderIdBuffer.length} bytes (max 21 bytes). Value: "${senderId}"`);
+    }
+
+    // Calculate message length in bytes
+    const messageBuffer = Buffer.from(message, 'utf8');
+    const messageLength = messageBuffer.length;
+
+    // SMPP short_message field has a max of 254 bytes
+    if (messageLength > 254) {
+      return reject(`Message too long: ${messageLength} bytes (max 254 bytes)`);
+    }
+
     session.submit_sm(
       {
         source_addr_ton: 5, // Alphanumeric
         source_addr_npi: 0,
-        source_addr: senderConfig.senderId,
+        source_addr: senderId,
 
         dest_addr_ton: 1,
         dest_addr_npi: 1,
         destination_addr: msisdn,
 
         short_message: message,
+        data_coding: 0x00, // GSM 7-bit default alphabet
       },
       (pdu) => {
         if (pdu.command_status === 0) {
