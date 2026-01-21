@@ -1,72 +1,95 @@
 import smpp from 'smpp';
 import * as config from './config.js';
 
-let session = null;
-let isBound = false;
+// Tashicell Session
+let tashicellSession = null;
+let tashicellBound = false;
 
-const startConnection = () => {
-    console.log('🔌 Initiating connection to Tashicell...');
+// BT SMS Session
+let btSmsSession = null;
+let btSmsBound = false;
 
-    // 1. Connect using the URL string format with timeout
-    session = smpp.connect({
-        url: `smpp://${config.host}:${config.port}`,
-        auto_enquire_link_period: 30000,
-        socket_timeout: 60000
-    });
+// Create a generic connection function
+const createConnection = (providerConfig, providerName) => {
+    let session = null;
+    let isBound = false;
 
-    // 2. Increase timeout to prevent the ETIMEDOUT you saw earlier
-    session.on('connect', () => {
-        console.log('📡 TCP Socket Connected. Sending Bind PDU...');
-        
-        session.bind_transceiver({
-            system_id: config.systemId,
-            password: config.password,
-            system_type: '',             
-            interface_version: 0x34,     
-            addr_ton: 0,
-            addr_npi: 0
-        }, (pdu) => {
-            if (pdu.command_status === 0) {
-                console.log('✅ SUCCESS: SMPP bound to Tashicell');
-                isBound = true;
-                
-                // 3. Heartbeat (Enquire Link) - Runs every 30 seconds
-                // This prevents Tashicell from closing the host connection
-                const heartbeat = setInterval(() => {
-                    if (session.socket && session.socket.writable) {
-                        session.enquire_link();
-                    } else {
-                        clearInterval(heartbeat);
-                    }
-                }, 30000);
+    const startConnection = () => {
+        console.log(`🔌 Initiating connection to ${providerName}...`);
 
-            } else {
-                // If this triggers, Tashicell is alive but rejected your 'AnupG' login
-                console.error('❌ Bind rejected. Status Code:', pdu.command_status);
-                isBound = false;
-            }
+        session = smpp.connect({
+            url: `smpp://${providerConfig.host}:${providerConfig.port}`,
+            auto_enquire_link_period: 30000,
+            socket_timeout: 60000
         });
-    });
 
-    // 4. Handle errors (like ETIMEDOUT or ECONNRESET)
-    session.on('error', (err) => {
-        console.error('🔥 SMPP Error:', err.code || err.message);
-    });
+        session.on('connect', () => {
+            console.log(`📡 TCP Socket Connected to ${providerName}. Sending Bind PDU...`);
+            
+            session.bind_transceiver({
+                system_id: providerConfig.systemId,
+                password: providerConfig.password,
+                system_type: '',             
+                interface_version: 0x34,     
+                addr_ton: 0,
+                addr_npi: 0
+            }, (pdu) => {
+                if (pdu.command_status === 0) {
+                    console.log(`✅ SUCCESS: SMPP bound to ${providerName}`);
+                    isBound = true;
+                    
+                    // Heartbeat (Enquire Link) - Runs every 30 seconds
+                    const heartbeat = setInterval(() => {
+                        if (session.socket && session.socket.writable) {
+                            session.enquire_link();
+                        } else {
+                            clearInterval(heartbeat);
+                        }
+                    }, 30000);
 
-    // 5. Automatic Reconnection logic
-    session.on('close', () => {
-        console.log('⚠️ Connection closed. Reconnecting in 10s...');
-        isBound = false;
-        setTimeout(startConnection, 10000);
-    });
+                } else {
+                    console.error(`❌ ${providerName} Bind rejected. Status Code:`, pdu.command_status);
+                    isBound = false;
+                }
+            });
+        });
+
+        session.on('error', (err) => {
+            console.error(`🔥 ${providerName} SMPP Error:`, err.code || err.message);
+        });
+
+        session.on('close', () => {
+            console.log(`⚠️ ${providerName} Connection closed. Reconnecting in 10s...`);
+            isBound = false;
+            setTimeout(startConnection, 10000);
+        });
+        
+        return { session, getStatus: () => isBound };
+    };
+
+    startConnection();
     
-    return session;
+    return {
+        getSession: () => ({ session, isBound }),
+        getStatus: () => isBound
+    };
 };
 
+// Initialize both connections
+const tashicellClient = createConnection(config.tashicell, 'Tashicell');
+const btSmsClient = createConnection(config.btSms, 'BT SMS');
+
+// Legacy getSession for backward compatibility
 const getSession = () => {
-    return { session, isBound };
+    return tashicellClient.getSession();
 };
 
-startConnection();
+// New methods to get specific provider sessions
+const getTashicellSession = () => tashicellClient.getSession();
+const getBtSmsSession = () => btSmsClient.getSession();
 
-export default { getSession };
+export default { 
+    getSession,           // Legacy - returns Tashicell
+    getTashicellSession,
+    getBtSmsSession
+};
